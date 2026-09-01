@@ -1618,7 +1618,7 @@ Please enter your basic details.
 </p>
 
 
-<form id="donationForm">
+<form id="donationForm" action="/api/donations" method="POST" enctype="multipart/form-data">
 
 
 <div class="form-group">
@@ -1630,6 +1630,7 @@ Full Name
 <input
 class="form-input"
 id="donorName"
+name="fullName"
 type="text"
 placeholder="Enter your full name"
 required>
@@ -1646,6 +1647,7 @@ Contact Number
 <input
 class="form-input"
 id="donorPhone"
+name="contactNumber"
 type="tel"
 placeholder="Enter your phone number"
 required>
@@ -1662,6 +1664,7 @@ Address
 <textarea
 class="form-input"
 id="donorAddress"
+name="address"
 placeholder="Enter your address"
 required></textarea>
 
@@ -1724,6 +1727,7 @@ onclick="setAmount(1000,this)">
 <input
 class="form-input"
 id="amount"
+name="donationAmount"
 type="number"
 placeholder="Or enter another amount"
 min="1"
@@ -1770,6 +1774,7 @@ Tap here to choose your screenshot
 <input
 class="file-input"
 id="paymentScreenshot"
+name="paymentScreenshot"
 type="file"
 accept="image/*"
 required>
@@ -1999,87 +2004,94 @@ function setAmount(value,button){
    DONATION FORM
 ===================================================== */
 
-document
-.getElementById("donationForm")
-.addEventListener("submit",function(event){
-
+document.getElementById("donationForm").addEventListener("submit", async function(event) {
     event.preventDefault();
 
+    const submitBtn = this.querySelector('button[type="submit"]');
+    const messageEl = document.getElementById("donationMessage");
 
-    let name=
-    document.getElementById("donorName").value;
+    const name = document.getElementById("donorName").value.trim();
+    const phone = document.getElementById("donorPhone").value.trim();
+    const address = document.getElementById("donorAddress").value.trim();
+    const amount = document.getElementById("amount").value.trim();
+    const fileInput = document.getElementById("paymentScreenshot");
+    const file = fileInput.files[0];
 
-    let phone=
-    document.getElementById("donorPhone").value;
-
-    let address=
-    document.getElementById("donorAddress").value;
-
-    let amount=
-    document.getElementById("amount").value;
-
-    let screenshot=
-    document.getElementById("paymentScreenshot").files[0];
-
-
-    if(
-        name==="" ||
-        phone==="" ||
-        address==="" ||
-        amount==="" ||
-        !screenshot
-    ){
-
-        alert(
-        "Please complete all fields and upload your payment screenshot."
-        );
-
+    if (!name || !phone || !address || !amount || !file) {
+        alert("Please complete all fields and select a payment screenshot image.");
         return;
-
     }
 
+    if (!file.type.startsWith("image/")) {
+        alert("Please select a valid image file for the payment screenshot.");
+        return;
+    }
 
-    /*
-       DAY 2 NOTE:
+    const formData = new FormData();
+    formData.append("fullName", name);
+    formData.append("contactNumber", phone);
+    formData.append("address", address);
+    formData.append("donationAmount", amount);
+    formData.append("paymentScreenshot", file);
 
-       The browser currently validates and
-       prepares the donor information.
+    const originalBtnText = submitBtn.innerText;
+    submitBtn.disabled = true;
+    submitBtn.innerText = "⏳ Submitting Details...";
 
-       In the next backend stage this data
-       will be sent securely to your server.
+    if (messageEl) {
+        messageEl.classList.remove("show");
+    }
 
-       Your server can then send a notification
-       to your authorised WhatsApp Business/API
-       account.
+    try {
+        const endpoint = this.getAttribute("action") || "/api/donations";
+        const response = await fetch(endpoint, {
+            method: "POST",
+            body: formData
+        });
 
-       We are NOT putting your private WhatsApp
-       credentials inside this webpage.
-    */
+        const result = await response.json().catch(() => ({}));
 
-
-    document
-    .getElementById("donationMessage")
-    .classList.add("show");
-
-
-    console.log("DONATION SUBMISSION");
-
-    console.log("Name:",name);
-
-    console.log("Phone:",phone);
-
-    console.log("Address:",address);
-
-    console.log("Amount:",amount);
-
-    console.log(
-    "Screenshot:",
-    screenshot.name
-    );
-
-
-    this.reset();
-
+        if (response.ok && result.success) {
+            if (messageEl) {
+                messageEl.style.color = "#8dffbd";
+                messageEl.style.borderColor = "rgba(40,200,120,.3)";
+                messageEl.style.background = "rgba(40,200,120,.1)";
+                const subId = result.data && result.data.id ? `#${result.data.id}` : '';
+                messageEl.innerHTML = "✅ Thank you! Your donor details have been securely recorded.<br><small style='opacity:0.85;'>Submission ID: " + subId + "</small>";
+                messageEl.classList.add("show");
+            } else {
+                alert("Thank you! Your donation details have been recorded successfully.");
+            }
+            this.reset();
+            const previewBox = document.getElementById("screenshotPreviewBox");
+            if (previewBox) previewBox.style.display = "none";
+        } else {
+            const errorMsg = result.error || "Failed to submit donation details. Please try again.";
+            if (messageEl) {
+                messageEl.style.color = "#ff8d8d";
+                messageEl.style.borderColor = "rgba(200,40,40,.3)";
+                messageEl.style.background = "rgba(200,40,40,.1)";
+                messageEl.innerHTML = "❌ Error: " + errorMsg;
+                messageEl.classList.add("show");
+            } else {
+                alert("Error: " + errorMsg);
+            }
+        }
+    } catch (err) {
+        console.error("Submission error:", err);
+        if (messageEl) {
+            messageEl.style.color = "#ff8d8d";
+            messageEl.style.borderColor = "rgba(200,40,40,.3)";
+            messageEl.style.background = "rgba(200,40,40,.1)";
+            messageEl.innerHTML = "❌ Network error. Please check your connection or backend server.";
+            messageEl.classList.add("show");
+        } else {
+            alert("Network error. Please try again.");
+        }
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerText = originalBtnText;
+    }
 });
 
 
@@ -2088,121 +2100,46 @@ document
 ===================================================== */
 
 function submitTip(){
-
-    let screenshot=
-    document.getElementById("tipScreenshot")
-    .files[0];
-
+    let screenshot = document.getElementById("tipScreenshot").files[0];
 
     if(!screenshot){
-
-        alert(
-        "Please upload your tip payment screenshot."
-        );
-
+        alert("Please upload your tip payment screenshot.");
         return;
-
     }
 
-
-    document
-    .getElementById("tipMessage")
-    .classList.add("show");
-
-
-    console.log(
-    "TIP SCREENSHOT:",
-    screenshot.name
-    );
-
+    document.getElementById("tipMessage").classList.add("show");
+    console.log("TIP SCREENSHOT:", screenshot.name);
 }
 
 </script>
 
-
-
 <script>
-/*
-  DAY 3 WHATSAPP SUBMISSION
-  This opens WhatsApp with the donor's details pre-filled.
-  It does NOT silently send a message: the person must press Send in WhatsApp.
-*/
-const whatsappNumber = "918686591717";
+document.getElementById("paymentScreenshot")?.addEventListener("change", function () {
+    const file = this.files && this.files[0];
+    const box = document.getElementById("screenshotPreviewBox");
+    const img = document.getElementById("screenshotPreview");
 
-function sendDonorToWhatsApp(event) {
-    event.preventDefault();
-
-    const name = document.getElementById("name")?.value.trim() || "";
-    const phone = document.getElementById("phone")?.value.trim() || "";
-    const address = document.getElementById("address")?.value.trim() || "";
-    const amount = document.getElementById("amount")?.value.trim() || "";
-    const shot = document.getElementById("mainShot");
-    const file = shot?.files?.[0];
-
-    if (!name || !phone || !address || !amount || !file) {
-        alert("Please fill in all donor details and select the payment screenshot.");
+    if (!file) {
+        if (box) box.style.display = "none";
+        if (img) img.removeAttribute("src");
         return;
     }
 
     if (!file.type.startsWith("image/")) {
-        alert("Please select an image payment screenshot.");
+        alert("Please select an image screenshot.");
+        this.value = "";
+        if (box) box.style.display = "none";
         return;
     }
 
-    const message =
-`🌱 JEEVA MITRA FOUNDATION — DONOR SUBMISSION
-
-👤 Name: ${name}
-📞 Contact: ${phone}
-📍 Address: ${address}
-💰 Amount: ₹${amount}
-
-📸 PAYMENT SCREENSHOT
-Please attach the payment screenshot selected on the website to this WhatsApp message before pressing Send.
-
-Thank you for supporting Jeeva Mitra Foundation. 🙏`;
-
-    const whatsappURL =
-        "https://wa.me/918686591717?text=" + encodeURIComponent(message);
-
-    const status = document.getElementById("status");
-    if (status) {
-        status.style.display = "block";
-        status.innerHTML =
-          "✅ WhatsApp is opening. <b>Attach the same payment screenshot</b> in the chat, then press <b>Send</b>.";
+    if (img && box) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            img.src = e.target.result;
+            box.style.display = "block";
+        };
+        reader.readAsDataURL(file);
     }
-
-    window.open(whatsappURL, "_blank", "noopener,noreferrer");
-}
-</script>
-
-<script>document.getElementById('donationForm').addEventListener('submit', sendDonorToWhatsApp);</script>
-
-<script>
-document.getElementById("mainShot")?.addEventListener("change", function () {
-  const file = this.files && this.files[0];
-  const box = document.getElementById("screenshotPreviewBox");
-  const img = document.getElementById("screenshotPreview");
-
-  if (!file) {
-    box.style.display = "none";
-    img.removeAttribute("src");
-    return;
-  }
-
-  if (!file.type.startsWith("image/")) {
-    alert("Please select an image screenshot.");
-    this.value = "";
-    box.style.display = "none";
-    return;
-  }
-
-  const reader = new FileReader();
-  reader.onload = function(e) {
-    img.src = e.target.result;
-    box.style.display = "block";
-  };
-  reader.readAsDataURL(file);
 });
 </script>
 </body>
