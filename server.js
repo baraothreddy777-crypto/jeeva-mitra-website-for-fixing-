@@ -1,19 +1,96 @@
 const express = require('express');
 const multer = require('multer');
-const sqlite3 = require('sqlite3').verbose();
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const DB_PATH = process.env.DB_PATH || path.join(__dirname, 'donations.db');
+const DB_PATH = process.env.DB_PATH || path.join(__dirname, 'donations.json');
 const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(__dirname, 'uploads');
 
 // Ensure upload directory exists
 if (!fs.existsSync(UPLOAD_DIR)) {
   fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 }
+
+// Pure JS File-Backed Database Store (Zero C++ native binaries, GLIBC-independent)
+class JsonStore {
+  constructor(filePath) {
+    this.filePath = filePath;
+    this.data = { nextId: 1, donations: [] };
+    this.init();
+  }
+
+  init() {
+    try {
+      if (fs.existsSync(this.filePath)) {
+        const fileContent = fs.readFileSync(this.filePath, 'utf8');
+        if (fileContent.trim()) {
+          this.data = JSON.parse(fileContent);
+          if (!this.data.donations) this.data.donations = [];
+          if (!this.data.nextId) {
+            const maxId = this.data.donations.reduce((max, d) => Math.max(max, d.id || 0), 0);
+            this.data.nextId = maxId + 1;
+          }
+        }
+      } else {
+        this.save();
+      }
+    } catch (err) {
+      console.error('Error reading JSON database, initializing fresh store:', err);
+      this.save();
+    }
+  }
+
+  save() {
+    try {
+      const tempPath = this.filePath + '.tmp';
+      fs.writeFileSync(tempPath, JSON.stringify(this.data, null, 2), 'utf8');
+      fs.renameSync(tempPath, this.filePath);
+    } catch (err) {
+      console.error('Error saving to JSON database:', err);
+    }
+  }
+
+  insert(record) {
+    const id = this.data.nextId++;
+    const donation = {
+      id,
+      fullName: record.fullName,
+      contactNumber: record.contactNumber,
+      address: record.address,
+      donationAmount: record.donationAmount,
+      screenshotFilename: record.screenshotFilename,
+      screenshotOriginalName: record.screenshotOriginalName,
+      createdAt: new Date().toISOString()
+    };
+    this.data.donations.push(donation);
+    this.save();
+    return donation;
+  }
+
+  getAll() {
+    // Return sorted by createdAt DESC
+    return [...this.data.donations].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  }
+
+  getById(id) {
+    const numericId = parseInt(id, 10);
+    return this.data.donations.find((d) => d.id === numericId) || null;
+  }
+
+  deleteById(id) {
+    const numericId = parseInt(id, 10);
+    const index = this.data.donations.findIndex((d) => d.id === numericId);
+    if (index === -1) return null;
+    const deleted = this.data.donations.splice(index, 1)[0];
+    this.save();
+    return deleted;
+  }
+}
+
+const db = new JsonStore(DB_PATH);
 
 // Configure multer storage
 const storage = multer.diskStorage({
@@ -56,30 +133,6 @@ app.get('/admin', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'admin.html'));
 });
 
-// Initialize SQLite database
-const db = new sqlite3.Database(DB_PATH, (err) => {
-  if (err) {
-    console.error('Failed to connect to SQLite database:', err.message);
-  } else {
-    console.log('Connected to SQLite database at', DB_PATH);
-  }
-});
-
-db.serialize(() => {
-  db.run(`
-    CREATE TABLE IF NOT EXISTS donations (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      fullName TEXT NOT NULL,
-      contactNumber TEXT NOT NULL,
-      address TEXT NOT NULL,
-      donationAmount REAL NOT NULL,
-      screenshotFilename TEXT NOT NULL,
-      screenshotOriginalName TEXT NOT NULL,
-      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
-    )
-  `);
-});
-
 // API Routes
 
 /**
@@ -95,7 +148,9 @@ app.post('/api/donations', upload.single('paymentScreenshot'), (req, res) => {
 
     if (!fullName || !contactNumber || !address || !donationAmount || isNaN(donationAmount) || donationAmount <= 0) {
       if (req.file) {
-        fs.unlinkSync(req.file.path); // Clean up uploaded file if validation fails
+        try {
+          fs.unlinkSync(req.file.path); // Clean up uploaded file if validation fails
+        } catch (e) {}
       }
       return res.status(400).json({
         success: false,
@@ -110,42 +165,22 @@ app.post('/api/donations', upload.single('paymentScreenshot'), (req, res) => {
       });
     }
 
-    const query = `
-      INSERT INTO donations (fullName, contactNumber, address, donationAmount, screenshotFilename, screenshotOriginalName)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `;
-    const params = [
+    const inserted = db.insert({
       fullName,
       contactNumber,
       address,
       donationAmount,
-      req.file.filename,
-      req.file.originalname
-    ];
+      screenshotFilename: req.file.filename,
+      screenshotOriginalName: req.file.originalname
+    });
 
-    db.run(query, params, function (err) {
-      if (err) {
-        console.error('Error saving donation:', err);
-        return res.status(500).json({
-          success: false,
-          error: 'Database error occurred while saving donation details.'
-        });
+    res.status(201).json({
+      success: true,
+      message: 'Donation details recorded successfully.',
+      data: {
+        ...inserted,
+        screenshotUrl: `/uploads/${req.file.filename}`
       }
-
-      const donationId = this.lastID;
-      res.status(201).json({
-        success: true,
-        message: 'Donation details recorded successfully.',
-        data: {
-          id: donationId,
-          fullName,
-          contactNumber,
-          address,
-          donationAmount,
-          screenshotUrl: `/uploads/${req.file.filename}`,
-          createdAt: new Date().toISOString()
-        }
-      });
     });
   } catch (error) {
     console.error('Error handling donation submission:', error);
@@ -161,16 +196,8 @@ app.post('/api/donations', upload.single('paymentScreenshot'), (req, res) => {
  * Retrieves all donor submissions
  */
 app.get('/api/donations', (req, res) => {
-  const query = `SELECT * FROM donations ORDER BY createdAt DESC`;
-  db.all(query, [], (err, rows) => {
-    if (err) {
-      console.error('Error fetching donations:', err);
-      return res.status(500).json({
-        success: false,
-        error: 'Failed to retrieve donation records.'
-      });
-    }
-
+  try {
+    const rows = db.getAll();
     const donations = rows.map((row) => ({
       ...row,
       screenshotUrl: `/uploads/${row.screenshotFilename}`
@@ -181,7 +208,13 @@ app.get('/api/donations', (req, res) => {
       count: donations.length,
       donations
     });
-  });
+  } catch (err) {
+    console.error('Error fetching donations:', err);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to retrieve donation records.'
+    });
+  }
 });
 
 /**
@@ -189,21 +222,16 @@ app.get('/api/donations', (req, res) => {
  * Retrieves a single donor submission
  */
 app.get('/api/donations/:id', (req, res) => {
-  const id = req.params.id;
-  db.get(`SELECT * FROM donations WHERE id = ?`, [id], (err, row) => {
-    if (err) {
-      return res.status(500).json({ success: false, error: 'Database error.' });
+  const donation = db.getById(req.params.id);
+  if (!donation) {
+    return res.status(404).json({ success: false, error: 'Donation record not found.' });
+  }
+  res.json({
+    success: true,
+    donation: {
+      ...donation,
+      screenshotUrl: `/uploads/${donation.screenshotFilename}`
     }
-    if (!row) {
-      return res.status(404).json({ success: false, error: 'Donation record not found.' });
-    }
-    res.json({
-      success: true,
-      donation: {
-        ...row,
-        screenshotUrl: `/uploads/${row.screenshotFilename}`
-      }
-    });
   });
 });
 
@@ -212,35 +240,23 @@ app.get('/api/donations/:id', (req, res) => {
  * Deletes a donation record and its screenshot file
  */
 app.delete('/api/donations/:id', (req, res) => {
-  const id = req.params.id;
-  db.get(`SELECT screenshotFilename FROM donations WHERE id = ?`, [id], (err, row) => {
-    if (err) {
-      return res.status(500).json({ success: false, error: 'Database query error.' });
+  const deleted = db.deleteById(req.params.id);
+  if (!deleted) {
+    return res.status(404).json({ success: false, error: 'Record not found.' });
+  }
+
+  const filePath = path.join(UPLOAD_DIR, deleted.screenshotFilename);
+  if (fs.existsSync(filePath)) {
+    try {
+      fs.unlinkSync(filePath);
+    } catch (fileErr) {
+      console.error('Failed to delete file:', fileErr);
     }
-    if (!row) {
-      return res.status(404).json({ success: false, error: 'Record not found.' });
-    }
+  }
 
-    const filePath = path.join(UPLOAD_DIR, row.screenshotFilename);
-
-    db.run(`DELETE FROM donations WHERE id = ?`, [id], (deleteErr) => {
-      if (deleteErr) {
-        return res.status(500).json({ success: false, error: 'Failed to delete record.' });
-      }
-
-      if (fs.existsSync(filePath)) {
-        try {
-          fs.unlinkSync(filePath);
-        } catch (fileErr) {
-          console.error('Failed to delete file:', fileErr);
-        }
-      }
-
-      res.json({
-        success: true,
-        message: 'Donation record deleted successfully.'
-      });
-    });
+  res.json({
+    success: true,
+    message: 'Donation record deleted successfully.'
   });
 });
 
