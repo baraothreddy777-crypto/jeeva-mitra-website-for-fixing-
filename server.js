@@ -129,7 +129,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'Jeeva_Mitra_Foundation_DAY4_WHATSAPP_DEMO_FIXED.html'));
 });
-app.get('/admin', (req, res) => {
+app.get('/admin', (req, res) => {  
   res.sendFile(path.join(__dirname, 'public', 'admin.html'));
 });
 
