@@ -3,7 +3,7 @@ const path = require('path');
 const fs = require('fs');
 
 // Set isolated test database and upload directory before requiring server
-process.env.DB_PATH = path.join(__dirname, 'test_donations.db');
+process.env.DB_PATH = path.join(__dirname, 'test_donations.json');
 process.env.UPLOAD_DIR = path.join(__dirname, 'test_uploads');
 
 const { app, db } = require('../server');
@@ -18,8 +18,7 @@ describe('Jeeva Mitra Foundation Donor Form Backend API', () => {
       'iVBORw0KGgoAAAANSU5ErkJggg=='; // minimal base64 png
     fs.writeFileSync(testImagePath, Buffer.from(dummyPngBase64, 'base64'));
 
-    // Wait for DB initialization
-    setTimeout(done, 500);
+    setTimeout(done, 100);
   });
 
   afterAll((done) => {
@@ -32,13 +31,11 @@ describe('Jeeva Mitra Foundation Donor Form Backend API', () => {
       fs.rmSync(testUploads, { recursive: true, force: true });
     }
 
-    db.close(() => {
-      const testDbPath = process.env.DB_PATH;
-      if (fs.existsSync(testDbPath)) {
-        fs.unlinkSync(testDbPath);
-      }
-      done();
-    });
+    const testDbPath = process.env.DB_PATH;
+    if (fs.existsSync(testDbPath)) {
+      fs.unlinkSync(testDbPath);
+    }
+    done();
   });
 
   test('GET / should serve the landing page HTML', async () => {
