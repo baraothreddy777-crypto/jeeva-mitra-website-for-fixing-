@@ -2099,16 +2099,80 @@ document.getElementById("donationForm").addEventListener("submit", async functio
    TIP SUBMISSION
 ===================================================== */
 
-function submitTip(){
-    let screenshot = document.getElementById("tipScreenshot").files[0];
+async function submitTip(){
+    const screenshotInput = document.getElementById("tipScreenshot");
+    const screenshot = screenshotInput ? screenshotInput.files[0] : null;
+    const messageEl = document.getElementById("tipMessage");
 
-    if(!screenshot){
+    if (!screenshot) {
         alert("Please upload your tip payment screenshot.");
         return;
     }
 
-    document.getElementById("tipMessage").classList.add("show");
-    console.log("TIP SCREENSHOT:", screenshot.name);
+    if (!screenshot.type.startsWith("image/")) {
+        alert("Please select a valid image file for the tip payment screenshot.");
+        return;
+    }
+
+    const submitBtn = document.querySelector("#tip .submit-button");
+    const originalBtnText = submitBtn ? submitBtn.innerText : "Submit Tip Details";
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerText = "⏳ Submitting Tip...";
+    }
+
+    const formData = new FormData();
+    formData.append("paymentScreenshot", screenshot);
+
+    try {
+        const response = await fetch("/api/tips", {
+            method: "POST",
+            body: formData
+        });
+
+        const result = await response.json().catch(() => ({}));
+
+        if (response.ok && result.success) {
+            if (messageEl) {
+                messageEl.style.color = "#8dffbd";
+                messageEl.style.borderColor = "rgba(40,200,120,.3)";
+                messageEl.style.background = "rgba(40,200,120,.1)";
+                const subId = result.data && result.data.id ? `#${result.data.id}` : '';
+                messageEl.innerHTML = "❤️ Thank you! Your tip payment screenshot has been recorded.<br><small style='opacity:0.85;'>Tip ID: " + subId + "</small>";
+                messageEl.classList.add("show");
+            } else {
+                alert("Thank you for your tip!");
+            }
+            if (screenshotInput) screenshotInput.value = "";
+        } else {
+            const errorMsg = result.error || "Failed to submit tip details. Please try again.";
+            if (messageEl) {
+                messageEl.style.color = "#ff8d8d";
+                messageEl.style.borderColor = "rgba(200,40,40,.3)";
+                messageEl.style.background = "rgba(200,40,40,.1)";
+                messageEl.innerHTML = "❌ Error: " + errorMsg;
+                messageEl.classList.add("show");
+            } else {
+                alert("Error: " + errorMsg);
+            }
+        }
+    } catch (err) {
+        console.error("Tip submission error:", err);
+        if (messageEl) {
+            messageEl.style.color = "#ff8d8d";
+            messageEl.style.borderColor = "rgba(200,40,40,.3)";
+            messageEl.style.background = "rgba(200,40,40,.1)";
+            messageEl.innerHTML = "❌ Network error. Please check your connection.";
+            messageEl.classList.add("show");
+        } else {
+            alert("Network error. Please try again.");
+        }
+    } finally {
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerText = originalBtnText;
+        }
+    }
 }
 
 </script>

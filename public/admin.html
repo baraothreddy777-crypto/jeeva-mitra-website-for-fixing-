@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Donor Details Admin | Jeeva Mitra Foundation</title>
+  <title>Admin Dashboard | Jeeva Mitra Foundation</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -37,7 +37,7 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 30px;
+      margin-bottom: 25px;
       flex-wrap: wrap;
       gap: 15px;
     }
@@ -77,26 +77,71 @@
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
       gap: 20px;
-      margin-bottom: 30px;
+      margin-bottom: 25px;
     }
     .stat-card {
       background: rgba(255, 255, 255, 0.05);
       border: 1px solid rgba(255, 255, 255, 0.1);
       backdrop-filter: blur(15px);
       border-radius: 18px;
-      padding: 22px;
+      padding: 20px;
     }
     .stat-card .label {
-      font-size: 12px;
+      font-size: 11px;
       color: rgba(255, 255, 255, 0.55);
       text-transform: uppercase;
       letter-spacing: 1px;
       margin-bottom: 8px;
     }
     .stat-card .value {
-      font-size: 28px;
+      font-size: 26px;
       font-weight: 700;
       color: #6dff9b;
+    }
+    .stat-card .sub-value {
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.7);
+      margin-top: 4px;
+    }
+
+    /* Tabs Bar */
+    .tabs-bar {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 20px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      padding-bottom: 12px;
+      flex-wrap: wrap;
+    }
+    .tab-btn {
+      padding: 10px 20px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: 0.3s;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .tab-btn:hover {
+      background: rgba(255, 255, 255, 0.12);
+      color: #fff;
+    }
+    .tab-btn.active {
+      background: linear-gradient(135deg, #7548ff, #268eff);
+      border-color: transparent;
+      color: #fff;
+      box-shadow: 0 4px 15px rgba(83, 65, 255, 0.3);
+    }
+    .badge-count {
+      padding: 2px 8px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.2);
+      font-size: 12px;
     }
 
     /* Actions Bar */
@@ -174,6 +219,20 @@
       backdrop-filter: blur(20px);
       border-radius: 20px;
       overflow: hidden;
+      margin-bottom: 30px;
+    }
+    .section-header {
+      padding: 18px 24px;
+      background: rgba(255, 255, 255, 0.04);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .section-header h2 {
+      font-size: 18px;
+      font-weight: 700;
+      color: #e2d9ff;
     }
     .table-container {
       overflow-x: auto;
@@ -282,7 +341,7 @@
       <div class="brand">
         <div>
           <h1>Jeeva Mitra Foundation</h1>
-          <div class="brand-sub">Submitted Donor Details Admin Dashboard</div>
+          <div class="brand-sub">Unified Admin Dashboard - Donations & Tip Submissions</div>
         </div>
       </div>
       <div class="nav-links">
@@ -293,30 +352,54 @@
     <!-- Summary Stats -->
     <div class="stats-grid">
       <div class="stat-card">
-        <div class="label">Total Donors</div>
-        <div class="value" id="statDonors">0</div>
+        <div class="label">🎁 Total Donations</div>
+        <div class="value" id="statDonationAmount">₹0</div>
+        <div class="sub-value" id="statDonationCount">0 Submissions</div>
       </div>
       <div class="stat-card">
-        <div class="label">Total Amount Raised</div>
-        <div class="value" id="statAmount">₹0</div>
+        <div class="label">💡 Total Tips</div>
+        <div class="value" id="statTipAmount" style="color: #59c7ff;">₹0</div>
+        <div class="sub-value" id="statTipCount">0 Submissions</div>
       </div>
       <div class="stat-card">
-        <div class="label">Average Donation</div>
-        <div class="value" id="statAvg">₹0</div>
+        <div class="label">💎 Total Combined Raised</div>
+        <div class="value" id="statTotalAmount" style="color: #a88cff;">₹0</div>
+        <div class="sub-value" id="statTotalCount">0 Total Records</div>
       </div>
+      <div class="stat-card">
+        <div class="label">📊 Average Contribution</div>
+        <div class="value" id="statAvgAmount" style="color: #ffd159;">₹0</div>
+        <div class="sub-value">Per Submission</div>
+      </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="tabs-bar">
+      <button class="tab-btn active" id="tabBtnAll" onclick="switchTab('all')">
+        📋 All Submissions <span class="badge-count" id="badgeAllCount">0</span>
+      </button>
+      <button class="tab-btn" id="tabBtnDonations" onclick="switchTab('donations')">
+        🎁 Donations <span class="badge-count" id="badgeDonationCount">0</span>
+      </button>
+      <button class="tab-btn" id="tabBtnTips" onclick="switchTab('tips')">
+        💡 Tip Submissions <span class="badge-count" id="badgeTipCount">0</span>
+      </button>
     </div>
 
     <!-- Actions Bar -->
     <div class="actions-bar">
       <div class="search-box">
-        <input type="text" id="searchInput" class="search-input" placeholder="🔍 Search by donor name, phone, or address..." oninput="filterDonations()">
+        <input type="text" id="searchInput" class="search-input" placeholder="🔍 Search by name, phone, address, notes, or amount..." oninput="filterData()">
       </div>
-      <button class="btn btn-secondary" onclick="loadDonations()">🔄 Refresh</button>
+      <button class="btn btn-secondary" onclick="loadAllData()">🔄 Refresh</button>
       <button class="btn btn-primary" onclick="exportCSV()">📥 Export CSV</button>
     </div>
 
-    <!-- Submissions Table -->
-    <div class="table-card">
+    <!-- Donations Table Section -->
+    <div class="table-card" id="donationsSection">
+      <div class="section-header">
+        <h2>🎁 Donation Submissions</h2>
+      </div>
       <div class="table-container">
         <table>
           <thead>
@@ -339,6 +422,35 @@
         </table>
       </div>
     </div>
+
+    <!-- Tip Submissions Table Section -->
+    <div class="table-card" id="tipsSection">
+      <div class="section-header">
+        <h2>💡 Tip Submissions</h2>
+      </div>
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th># ID</th>
+              <th>Date & Time</th>
+              <th>Name / Tipper</th>
+              <th>Contact Number</th>
+              <th>Notes / Message</th>
+              <th>Tip Amount</th>
+              <th>Payment Screenshot</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="tipsTbody">
+            <tr>
+              <td colspan="8" class="empty-state">Loading tip details...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
   </div>
 
   <!-- Screenshot Modal -->
@@ -356,42 +468,127 @@
 
   <script>
     let allDonations = [];
+    let allTips = [];
+    let currentTab = 'all';
 
-    async function loadDonations() {
-      const tbody = document.getElementById('donationsTbody');
-      tbody.innerHTML = '<tr><td colspan="8" class="empty-state">Loading donor details...</td></tr>';
+    async function loadAllData() {
+      const donTbody = document.getElementById('donationsTbody');
+      const tipsTbody = document.getElementById('tipsTbody');
+      donTbody.innerHTML = '<tr><td colspan="8" class="empty-state">Loading donor details...</td></tr>';
+      tipsTbody.innerHTML = '<tr><td colspan="8" class="empty-state">Loading tip details...</td></tr>';
 
       try {
-        const response = await fetch('/api/donations');
-        const data = await response.json();
+        const [donRes, tipsRes] = await Promise.all([
+          fetch('/api/donations'),
+          fetch('/api/tips')
+        ]);
 
-        if (data.success) {
-          allDonations = data.donations || [];
-          renderStats(allDonations);
-          renderTable(allDonations);
+        const donData = await donRes.json();
+        const tipsData = await tipsRes.json();
+
+        if (donData.success) {
+          allDonations = donData.donations || [];
         } else {
-          tbody.innerHTML = `<tr><td colspan="8" class="empty-state">Error: ${data.error}</td></tr>`;
+          console.error('Error fetching donations:', donData.error);
+          allDonations = [];
         }
+
+        if (tipsData.success) {
+          allTips = tipsData.tips || [];
+        } else {
+          console.error('Error fetching tips:', tipsData.error);
+          allTips = [];
+        }
+
+        renderStats();
+        filterData();
       } catch (err) {
-        console.error('Error fetching donations:', err);
-        tbody.innerHTML = '<tr><td colspan="8" class="empty-state">Failed to connect to backend server.</td></tr>';
+        console.error('Error connecting to server:', err);
+        donTbody.innerHTML = '<tr><td colspan="8" class="empty-state">Failed to connect to backend server.</td></tr>';
+        tipsTbody.innerHTML = '<tr><td colspan="8" class="empty-state">Failed to connect to backend server.</td></tr>';
       }
     }
 
-    function renderStats(donations) {
-      const totalCount = donations.length;
-      const totalSum = donations.reduce((acc, d) => acc + (parseFloat(d.donationAmount) || 0), 0);
+    function renderStats() {
+      const donCount = allDonations.length;
+      const donSum = allDonations.reduce((acc, d) => acc + (parseFloat(d.donationAmount) || 0), 0);
+
+      const tipCount = allTips.length;
+      const tipSum = allTips.reduce((acc, t) => acc + (parseFloat(t.tipAmount) || 0), 0);
+
+      const totalCount = donCount + tipCount;
+      const totalSum = donSum + tipSum;
       const avgAmt = totalCount > 0 ? Math.round(totalSum / totalCount) : 0;
 
-      document.getElementById('statDonors').innerText = totalCount;
-      document.getElementById('statAmount').innerText = '₹' + totalSum.toLocaleString('en-IN');
-      document.getElementById('statAvg').innerText = '₹' + avgAmt.toLocaleString('en-IN');
+      document.getElementById('statDonationAmount').innerText = '₹' + donSum.toLocaleString('en-IN');
+      document.getElementById('statDonationCount').innerText = `${donCount} Submissions`;
+
+      document.getElementById('statTipAmount').innerText = '₹' + tipSum.toLocaleString('en-IN');
+      document.getElementById('statTipCount').innerText = `${tipCount} Submissions`;
+
+      document.getElementById('statTotalAmount').innerText = '₹' + totalSum.toLocaleString('en-IN');
+      document.getElementById('statTotalCount').innerText = `${totalCount} Total Records`;
+
+      document.getElementById('statAvgAmount').innerText = '₹' + avgAmt.toLocaleString('en-IN');
+
+      document.getElementById('badgeAllCount').innerText = totalCount;
+      document.getElementById('badgeDonationCount').innerText = donCount;
+      document.getElementById('badgeTipCount').innerText = tipCount;
     }
 
-    function renderTable(donations) {
+    function switchTab(tabName) {
+      currentTab = tabName;
+      document.getElementById('tabBtnAll').classList.toggle('active', tabName === 'all');
+      document.getElementById('tabBtnDonations').classList.toggle('active', tabName === 'donations');
+      document.getElementById('tabBtnTips').classList.toggle('active', tabName === 'tips');
+
+      const donSec = document.getElementById('donationsSection');
+      const tipsSec = document.getElementById('tipsSection');
+
+      if (tabName === 'all') {
+        donSec.style.display = 'block';
+        tipsSec.style.display = 'block';
+      } else if (tabName === 'donations') {
+        donSec.style.display = 'block';
+        tipsSec.style.display = 'none';
+      } else if (tabName === 'tips') {
+        donSec.style.display = 'none';
+        tipsSec.style.display = 'block';
+      }
+
+      filterData();
+    }
+
+    function filterData() {
+      const query = document.getElementById('searchInput').value.toLowerCase().trim();
+
+      let filteredDonations = allDonations;
+      let filteredTips = allTips;
+
+      if (query) {
+        filteredDonations = allDonations.filter(d =>
+          (d.fullName && d.fullName.toLowerCase().includes(query)) ||
+          (d.contactNumber && d.contactNumber.toLowerCase().includes(query)) ||
+          (d.address && d.address.toLowerCase().includes(query)) ||
+          (String(d.donationAmount).includes(query))
+        );
+
+        filteredTips = allTips.filter(t =>
+          (t.fullName && t.fullName.toLowerCase().includes(query)) ||
+          (t.contactNumber && t.contactNumber.toLowerCase().includes(query)) ||
+          (t.notes && t.notes.toLowerCase().includes(query)) ||
+          (String(t.tipAmount).includes(query))
+        );
+      }
+
+      renderDonationsTable(filteredDonations);
+      renderTipsTable(filteredTips);
+    }
+
+    function renderDonationsTable(donations) {
       const tbody = document.getElementById('donationsTbody');
       if (!donations || donations.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" class="empty-state">No donor submissions found.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" class="empty-state">No donation submissions found.</td></tr>';
         return;
       }
 
@@ -416,25 +613,37 @@
       }).join('');
     }
 
-    function filterDonations() {
-      const query = document.getElementById('searchInput').value.toLowerCase().trim();
-      if (!query) {
-        renderTable(allDonations);
+    function renderTipsTable(tips) {
+      const tbody = document.getElementById('tipsTbody');
+      if (!tips || tips.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" class="empty-state">No tip submissions found.</td></tr>';
         return;
       }
 
-      const filtered = allDonations.filter(d =>
-        (d.fullName && d.fullName.toLowerCase().includes(query)) ||
-        (d.contactNumber && d.contactNumber.toLowerCase().includes(query)) ||
-        (d.address && d.address.toLowerCase().includes(query)) ||
-        (String(d.donationAmount).includes(query))
-      );
-
-      renderTable(filtered);
+      tbody.innerHTML = tips.map(t => {
+        const dateStr = t.createdAt ? new Date(t.createdAt).toLocaleString('en-IN') : 'N/A';
+        const amountDisplay = t.tipAmount ? `₹${t.tipAmount}` : 'N/A';
+        return `
+          <tr>
+            <td><strong>#${t.id}</strong></td>
+            <td>${escapeHtml(dateStr)}</td>
+            <td><strong>${escapeHtml(t.fullName || 'Anonymous')}</strong></td>
+            <td>${escapeHtml(t.contactNumber || 'N/A')}</td>
+            <td style="max-width:200px; word-break:break-word;">${escapeHtml(t.notes || 'No message')}</td>
+            <td><span class="amount-badge" style="background: rgba(89,199,255,0.15); border-color: rgba(89,199,255,0.3); color: #59c7ff;">${escapeHtml(amountDisplay)}</span></td>
+            <td>
+              <img src="${t.screenshotUrl}" alt="Screenshot" class="screenshot-thumb" onclick="openModal('${t.screenshotUrl}', '${escapeHtml(t.fullName || 'Tip')}', '${amountDisplay}')">
+            </td>
+            <td>
+              <button class="btn btn-danger" onclick="deleteTip(${t.id})">Delete</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
     }
 
     async function deleteDonation(id) {
-      if (!confirm('Are you sure you want to delete this donor submission record?')) {
+      if (!confirm('Are you sure you want to delete this donation submission record?')) {
         return;
       }
 
@@ -442,7 +651,7 @@
         const response = await fetch(`/api/donations/${id}`, { method: 'DELETE' });
         const data = await response.json();
         if (data.success) {
-          loadDonations();
+          loadAllData();
         } else {
           alert('Delete failed: ' + data.error);
         }
@@ -451,8 +660,26 @@
       }
     }
 
-    function openModal(imgUrl, donorName, amount) {
-      document.getElementById('modalTitle').innerText = `${donorName} (${amount})`;
+    async function deleteTip(id) {
+      if (!confirm('Are you sure you want to delete this tip submission record?')) {
+        return;
+      }
+
+      try {
+        const response = await fetch(`/api/tips/${id}`, { method: 'DELETE' });
+        const data = await response.json();
+        if (data.success) {
+          loadAllData();
+        } else {
+          alert('Delete failed: ' + data.error);
+        }
+      } catch (err) {
+        alert('Failed to connect to backend server.');
+      }
+    }
+
+    function openModal(imgUrl, title, amount) {
+      document.getElementById('modalTitle').innerText = `${title} (${amount})`;
       document.getElementById('modalSub').innerText = `Screenshot URL: ${imgUrl}`;
       document.getElementById('modalImg').src = imgUrl;
       document.getElementById('modalDownload').href = imgUrl;
@@ -464,27 +691,61 @@
     }
 
     function exportCSV() {
-      if (!allDonations || allDonations.length === 0) {
-        alert('No donation records available to export.');
-        return;
+      let exportData = [];
+      let filename = `Jeeva_Mitra_Submissions_${Date.now()}.csv`;
+      let headers = [];
+
+      if (currentTab === 'donations') {
+        if (!allDonations.length) return alert('No donation records available to export.');
+        headers = ['ID', 'Type', 'Date Time', 'Full Name', 'Contact Number', 'Address/Notes', 'Amount (INR)', 'Screenshot URL'];
+        exportData = allDonations.map(d => [
+          d.id, 'Donation', `"${d.createdAt || ''}"`,
+          `"${(d.fullName || '').replace(/"/g, '""')}"`,
+          `"${(d.contactNumber || '').replace(/"/g, '""')}"`,
+          `"${(d.address || '').replace(/"/g, '""')}"`,
+          d.donationAmount,
+          `"${window.location.origin}${d.screenshotUrl}"`
+        ]);
+        filename = `Jeeva_Mitra_Donations_${Date.now()}.csv`;
+      } else if (currentTab === 'tips') {
+        if (!allTips.length) return alert('No tip records available to export.');
+        headers = ['ID', 'Type', 'Date Time', 'Full Name', 'Contact Number', 'Address/Notes', 'Amount (INR)', 'Screenshot URL'];
+        exportData = allTips.map(t => [
+          t.id, 'Tip', `"${t.createdAt || ''}"`,
+          `"${(t.fullName || 'Anonymous').replace(/"/g, '""')}"`,
+          `"${(t.contactNumber || '').replace(/"/g, '""')}"`,
+          `"${(t.notes || '').replace(/"/g, '""')}"`,
+          t.tipAmount || 0,
+          `"${window.location.origin}${t.screenshotUrl}"`
+        ]);
+        filename = `Jeeva_Mitra_Tips_${Date.now()}.csv`;
+      } else {
+        if (!allDonations.length && !allTips.length) return alert('No records available to export.');
+        headers = ['ID', 'Type', 'Date Time', 'Full Name', 'Contact Number', 'Address/Notes', 'Amount (INR)', 'Screenshot URL'];
+        const donRows = allDonations.map(d => [
+          d.id, 'Donation', `"${d.createdAt || ''}"`,
+          `"${(d.fullName || '').replace(/"/g, '""')}"`,
+          `"${(d.contactNumber || '').replace(/"/g, '""')}"`,
+          `"${(d.address || '').replace(/"/g, '""')}"`,
+          d.donationAmount,
+          `"${window.location.origin}${d.screenshotUrl}"`
+        ]);
+        const tipRows = allTips.map(t => [
+          t.id, 'Tip', `"${t.createdAt || ''}"`,
+          `"${(t.fullName || 'Anonymous').replace(/"/g, '""')}"`,
+          `"${(t.contactNumber || '').replace(/"/g, '""')}"`,
+          `"${(t.notes || '').replace(/"/g, '""')}"`,
+          t.tipAmount || 0,
+          `"${window.location.origin}${t.screenshotUrl}"`
+        ]);
+        exportData = [...donRows, ...tipRows];
       }
 
-      const headers = ['ID', 'Date Time', 'Full Name', 'Contact Number', 'Address', 'Donation Amount (INR)', 'Screenshot URL'];
-      const rows = allDonations.map(d => [
-        d.id,
-        `"${d.createdAt || ''}"`,
-        `"${(d.fullName || '').replace(/"/g, '""')}"`,
-        `"${(d.contactNumber || '').replace(/"/g, '""')}"`,
-        `"${(d.address || '').replace(/"/g, '""')}"`,
-        d.donationAmount,
-        `"${window.location.origin}${d.screenshotUrl}"`
-      ]);
-
-      const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+      const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...exportData.map(r => r.join(','))].join('\n');
       const encodedUri = encodeURI(csvContent);
       const link = document.createElement('a');
       link.setAttribute('href', encodedUri);
-      link.setAttribute('download', `Jeeva_Mitra_Donations_${Date.now()}.csv`);
+      link.setAttribute('download', filename);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -500,8 +761,8 @@
         .replace(/'/g, '&#039;');
     }
 
-    // Load donations on page load
-    loadDonations();
+    // Load data on page load
+    loadAllData();
   </script>
 </body>
 </html>

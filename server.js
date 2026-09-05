@@ -7,6 +7,7 @@ const fs = require('fs');
 const app = express();
 const PORT = process.env.PORT || 3000;
 const DB_PATH = process.env.DB_PATH || path.join(__dirname, 'donations.json');
+const TIPS_DB_PATH = process.env.TIPS_DB_PATH || path.join(__dirname, 'tips.json');
 const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(__dirname, 'uploads');
 
 // Ensure upload directory exists
@@ -16,9 +17,10 @@ if (!fs.existsSync(UPLOAD_DIR)) {
 
 // Pure JS File-Backed Database Store (Zero C++ native binaries, GLIBC-independent)
 class JsonStore {
-  constructor(filePath) {
+  constructor(filePath, storeKey) {
     this.filePath = filePath;
-    this.data = { nextId: 1, donations: [] };
+    this.storeKey = storeKey || 'items';
+    this.data = { nextId: 1, [this.storeKey]: [] };
     this.init();
   }
 
@@ -28,9 +30,17 @@ class JsonStore {
         const fileContent = fs.readFileSync(this.filePath, 'utf8');
         if (fileContent.trim()) {
           this.data = JSON.parse(fileContent);
-          if (!this.data.donations) this.data.donations = [];
+          if (!this.data[this.storeKey]) {
+            const foundKey = Object.keys(this.data).find((k) => Array.isArray(this.data[k])) || this.storeKey;
+            if (foundKey !== this.storeKey && Array.isArray(this.data[foundKey])) {
+              this.storeKey = foundKey;
+            } else {
+              this.data[this.storeKey] = [];
+            }
+          }
+          const list = this.getItems();
           if (!this.data.nextId) {
-            const maxId = this.data.donations.reduce((max, d) => Math.max(max, d.id || 0), 0);
+            const maxId = list.reduce((max, d) => Math.max(max, d.id || 0), 0);
             this.data.nextId = maxId + 1;
           }
         }
@@ -53,44 +63,44 @@ class JsonStore {
     }
   }
 
+  getItems() {
+    return this.data[this.storeKey] || [];
+  }
+
   insert(record) {
     const id = this.data.nextId++;
-    const donation = {
+    const item = {
       id,
-      fullName: record.fullName,
-      contactNumber: record.contactNumber,
-      address: record.address,
-      donationAmount: record.donationAmount,
-      screenshotFilename: record.screenshotFilename,
-      screenshotOriginalName: record.screenshotOriginalName,
-      createdAt: new Date().toISOString()
+      ...record,
+      createdAt: record.createdAt || new Date().toISOString()
     };
-    this.data.donations.push(donation);
+    this.getItems().push(item);
     this.save();
-    return donation;
+    return item;
   }
 
   getAll() {
-    // Return sorted by createdAt DESC
-    return [...this.data.donations].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    return [...this.getItems()].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   }
 
   getById(id) {
     const numericId = parseInt(id, 10);
-    return this.data.donations.find((d) => d.id === numericId) || null;
+    return this.getItems().find((d) => d.id === numericId) || null;
   }
 
   deleteById(id) {
     const numericId = parseInt(id, 10);
-    const index = this.data.donations.findIndex((d) => d.id === numericId);
+    const items = this.getItems();
+    const index = items.findIndex((d) => d.id === numericId);
     if (index === -1) return null;
-    const deleted = this.data.donations.splice(index, 1)[0];
+    const deleted = items.splice(index, 1)[0];
     this.save();
     return deleted;
   }
 }
 
-const db = new JsonStore(DB_PATH);
+const db = new JsonStore(DB_PATH, 'donations');
+const tipsDb = new JsonStore(TIPS_DB_PATH, 'tips');
 
 // Configure multer storage
 const storage = multer.diskStorage({
@@ -116,6 +126,23 @@ const upload = multer({
   }
 });
 
+const uploadSingleScreenshot = (req, res, next) => {
+  upload.fields([
+    { name: 'paymentScreenshot', maxCount: 1 },
+    { name: 'screenshot', maxCount: 1 }
+  ])(req, res, (err) => {
+    if (err) return next(err);
+    if (req.files) {
+      if (req.files.paymentScreenshot && req.files.paymentScreenshot[0]) {
+        req.file = req.files.paymentScreenshot[0];
+      } else if (req.files.screenshot && req.files.screenshot[0]) {
+        req.file = req.files.screenshot[0];
+      }
+    }
+    next();
+  });
+};
+
 // Middleware
 app.use(cors());
 app.use(express.json());
@@ -129,17 +156,17 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'Jeeva_Mitra_Foundation_DAY4_WHATSAPP_DEMO_FIXED.html'));
 });
-app.get('/admin', (req, res) => {  
+app.get('/admin', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'admin.html'));
 });
 
-// API Routes
+// API Routes - Donations
 
 /**
  * POST /api/donations
  * Accepts donor details & payment screenshot file
  */
-app.post('/api/donations', upload.single('paymentScreenshot'), (req, res) => {
+app.post('/api/donations', uploadSingleScreenshot, (req, res) => {
   try {
     const fullName = (req.body.fullName || req.body.donorName || '').trim();
     const contactNumber = (req.body.contactNumber || req.body.donorPhone || req.body.phone || '').trim();
@@ -260,6 +287,126 @@ app.delete('/api/donations/:id', (req, res) => {
   });
 });
 
+// API Routes - Tips
+
+/**
+ * POST /api/tips
+ * Accepts tip details & payment screenshot file
+ */
+app.post('/api/tips', uploadSingleScreenshot, (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        error: 'Payment screenshot image is required.'
+      });
+    }
+
+    const fullName = (req.body.fullName || req.body.donorName || req.body.name || 'Anonymous').trim();
+    const contactNumber = (req.body.contactNumber || req.body.donorPhone || req.body.phone || '').trim();
+    const tipAmount = parseFloat(req.body.tipAmount || req.body.amount || 0);
+    const notes = (req.body.notes || req.body.message || req.body.comment || '').trim();
+
+    const inserted = tipsDb.insert({
+      fullName: fullName || 'Anonymous',
+      contactNumber,
+      tipAmount: isNaN(tipAmount) ? 0 : tipAmount,
+      notes,
+      screenshotFilename: req.file.filename,
+      screenshotOriginalName: req.file.originalname
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Tip details recorded successfully.',
+      data: {
+        ...inserted,
+        screenshotUrl: `/uploads/${req.file.filename}`
+      }
+    });
+  } catch (error) {
+    console.error('Error handling tip submission:', error);
+    if (req.file) {
+      try {
+        fs.unlinkSync(req.file.path);
+      } catch (e) {}
+    }
+    res.status(500).json({
+      success: false,
+      error: 'An unexpected server error occurred.'
+    });
+  }
+});
+
+/**
+ * GET /api/tips
+ * Retrieves all tip submissions
+ */
+app.get('/api/tips', (req, res) => {
+  try {
+    const rows = tipsDb.getAll();
+    const tips = rows.map((row) => ({
+      ...row,
+      screenshotUrl: `/uploads/${row.screenshotFilename}`
+    }));
+
+    res.json({
+      success: true,
+      count: tips.length,
+      tips
+    });
+  } catch (err) {
+    console.error('Error fetching tips:', err);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to retrieve tip records.'
+    });
+  }
+});
+
+/**
+ * GET /api/tips/:id
+ * Retrieves a single tip submission
+ */
+app.get('/api/tips/:id', (req, res) => {
+  const tip = tipsDb.getById(req.params.id);
+  if (!tip) {
+    return res.status(404).json({ success: false, error: 'Tip record not found.' });
+  }
+  res.json({
+    success: true,
+    tip: {
+      ...tip,
+      screenshotUrl: `/uploads/${tip.screenshotFilename}`
+    }
+  });
+});
+
+/**
+ * DELETE /api/tips/:id
+ * Deletes a tip record and its screenshot file
+ */
+app.delete('/api/tips/:id', (req, res) => {
+  const deleted = tipsDb.deleteById(req.params.id);
+  if (!deleted) {
+    return res.status(404).json({ success: false, error: 'Record not found.' });
+  }
+
+  const filePath = path.join(UPLOAD_DIR, deleted.screenshotFilename);
+  if (fs.existsSync(filePath)) {
+    try {
+      fs.unlinkSync(filePath);
+    } catch (fileErr) {
+      console.error('Failed to delete file:', fileErr);
+    }
+  }
+
+  res.json({
+    success: true,
+    message: 'Tip record deleted successfully.'
+  });
+});
+
 // Multer error handling middleware
 app.use((err, req, res, next) => {
   if (err instanceof multer.MulterError) {
@@ -277,4 +424,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { app, db };
+module.exports = { app, db, tipsDb };
