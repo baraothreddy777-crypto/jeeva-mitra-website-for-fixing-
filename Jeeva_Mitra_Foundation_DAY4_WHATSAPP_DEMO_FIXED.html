@@ -1905,6 +1905,55 @@ SCAN TO GIVE A TIP
 
 </div>
 
+<div class="form-group" style="max-width:450px;margin:25px auto 0;text-align:left;">
+
+<label style="display:block;font-size:12px;color:rgba(255,255,255,.6);margin-bottom:8px;">
+
+Select or Enter Tip Amount (₹)
+
+</label>
+
+<div class="amount-row" style="margin-bottom:12px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
+
+<button
+type="button"
+class="amount-button tip-amount-button"
+onclick="setTipAmount(100,this)">
+
+₹100
+
+</button>
+
+<button
+type="button"
+class="amount-button tip-amount-button"
+onclick="setTipAmount(500,this)">
+
+₹500
+
+</button>
+
+<button
+type="button"
+class="amount-button tip-amount-button"
+onclick="setTipAmount(1000,this)">
+
+₹1000
+
+</button>
+
+</div>
+
+<input
+class="form-input"
+id="tipAmount"
+name="tipAmount"
+type="number"
+placeholder="Or enter custom tip amount (e.g. 250)"
+min="1">
+
+</div>
+
 
 <div
 class="upload-box"
@@ -1987,7 +2036,7 @@ function setAmount(value,button){
     document.getElementById("amount").value=value;
 
     let buttons=
-    document.querySelectorAll(".amount-button");
+    document.querySelectorAll("#donationForm .amount-button");
 
     buttons.forEach(function(item){
 
@@ -1996,6 +2045,25 @@ function setAmount(value,button){
     });
 
     button.classList.add("active");
+
+}
+
+function setTipAmount(value,button){
+
+    document.getElementById("tipAmount").value=value;
+
+    let buttons=
+    document.querySelectorAll(".tip-amount-button");
+
+    buttons.forEach(function(item){
+
+        item.classList.remove("active");
+
+    });
+
+    if (button) {
+        button.classList.add("active");
+    }
 
 }
 
@@ -2100,6 +2168,8 @@ document.getElementById("donationForm").addEventListener("submit", async functio
 ===================================================== */
 
 async function submitTip(){
+    const tipAmountInput = document.getElementById("tipAmount");
+    const tipAmount = tipAmountInput ? tipAmountInput.value.trim() : "";
     const screenshotInput = document.getElementById("tipScreenshot");
     const screenshot = screenshotInput ? screenshotInput.files[0] : null;
     const messageEl = document.getElementById("tipMessage");
@@ -2123,6 +2193,9 @@ async function submitTip(){
 
     const formData = new FormData();
     formData.append("paymentScreenshot", screenshot);
+    if (tipAmount) {
+        formData.append("tipAmount", tipAmount);
+    }
 
     try {
         const response = await fetch("/api/tips", {
@@ -2138,12 +2211,16 @@ async function submitTip(){
                 messageEl.style.borderColor = "rgba(40,200,120,.3)";
                 messageEl.style.background = "rgba(40,200,120,.1)";
                 const subId = result.data && result.data.id ? `#${result.data.id}` : '';
-                messageEl.innerHTML = "❤️ Thank you! Your tip payment screenshot has been recorded.<br><small style='opacity:0.85;'>Tip ID: " + subId + "</small>";
+                const displayAmt = result.data && result.data.tipAmount ? ` (₹${result.data.tipAmount})` : '';
+                messageEl.innerHTML = "❤️ Thank you! Your tip payment screenshot" + displayAmt + " has been recorded.<br><small style='opacity:0.85;'>Tip ID: " + subId + "</small>";
                 messageEl.classList.add("show");
             } else {
                 alert("Thank you for your tip!");
             }
             if (screenshotInput) screenshotInput.value = "";
+            if (tipAmountInput) tipAmountInput.value = "";
+            let buttons = document.querySelectorAll(".tip-amount-button");
+            buttons.forEach(function(item) { item.classList.remove("active"); });
         } else {
             const errorMsg = result.error || "Failed to submit tip details. Please try again.";
             if (messageEl) {
@@ -2174,6 +2251,13 @@ async function submitTip(){
         }
     }
 }
+
+document.getElementById("tipAmount")?.addEventListener("input", function() {
+    let buttons = document.querySelectorAll(".tip-amount-button");
+    buttons.forEach(function(item) {
+        item.classList.remove("active");
+    });
+});
 
 </script>
 

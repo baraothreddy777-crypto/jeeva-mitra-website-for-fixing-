@@ -1,5 +1,5 @@
 {
-  "nextId": 2,
+  "nextId": 3,
   "tips": [
     {
       "id": 1,
@@ -10,6 +10,16 @@
       "screenshotFilename": "screenshot-1788585062528-3242145.png",
       "screenshotOriginalName": "test_tip.png",
       "createdAt": "2026-09-05T05:11:02.532Z"
+    },
+    {
+      "id": 2,
+      "fullName": "Anonymous",
+      "contactNumber": "",
+      "tipAmount": 250,
+      "notes": "",
+      "screenshotFilename": "screenshot-1790925863386-224542870.png",
+      "screenshotOriginalName": "test_tip_screenshot.png",
+      "createdAt": "2026-10-02T07:24:23.392Z"
     }
   ]
 }
