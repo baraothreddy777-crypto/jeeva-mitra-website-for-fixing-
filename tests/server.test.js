@@ -154,6 +154,18 @@ describe('Jeeva Mitra Foundation Donor & Tip Form Backend API', () => {
     createdTipId = res.body.data.id;
   });
 
+  test('POST /api/tips should handle preset amount buttons (e.g., 500) or amount field', async () => {
+    const res = await request(app)
+      .post('/api/tips')
+      .field('fullName', 'Amit Shah')
+      .field('amount', '500')
+      .attach('paymentScreenshot', testImagePath);
+
+    expect(res.statusCode).toBe(201);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data.tipAmount).toBe(500);
+  });
+
   test('POST /api/tips should fail if payment screenshot is missing', async () => {
     const res = await request(app)
       .post('/api/tips')
